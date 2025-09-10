@@ -73,6 +73,12 @@ contract SmartSub {
     }
 
     function activateSub (uint256 id) public isSubOwner(id) subExists(id) {
-        
+        subs[id].state = subState.Active;
     }
+
+    function pauseSub (uint256 id) public isSubOwner(id) subExists(id) {
+        subs[id].state = subState.Paused;
+    }
+
+    
 }

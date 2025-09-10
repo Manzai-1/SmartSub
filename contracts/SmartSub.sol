@@ -3,9 +3,12 @@ pragma solidity 0.8.28;
 
 contract SmartSub {
 
+    address private owner; 
+    uint256 private nextId;
+
     enum subState { 
-        active, 
-        paused 
+        Active, 
+        Paused 
     }
 
     struct Subscription {
@@ -28,4 +31,33 @@ contract SmartSub {
         uint256 => userSubscription
     )) public userSubscriptions;
 
+    event subscriptionCreated(
+        address indexed creator,
+        uint256 id
+    );
+
+    constructor () {
+        owner  = msg.sender;
+    }
+
+    function createSubscription (
+        string memory _title,
+        uint256 _durationDays,
+        uint256 _priceWei,
+        bool activate
+    ) public {
+        uint256 _id = nextId++;
+
+        subscriptions[_id] = Subscription({
+            title: _title,
+            id: _id,
+            durationDays: _durationDays,
+            priceWei: _priceWei,
+            state: activate ? subState.Active : subState.Paused,
+            owner: msg.sender,
+            exists: true
+        });
+
+        emit subscriptionCreated(msg.sender, _id);
+    }
 }

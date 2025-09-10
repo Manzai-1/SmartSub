@@ -10,8 +10,9 @@ contract SmartSub {
         Active, 
         Paused 
     }
+    
 
-    struct Subscription {
+    struct Sub {
         string title;
         uint256 id;
         uint256 durationDays;
@@ -21,26 +22,36 @@ contract SmartSub {
         bool exists;
     }
 
-    struct userSubscription {
-        uint256 subId;
-        uint256 durationDays;
-    }
 
-    mapping(uint256 => Subscription) public subscriptions;
+    mapping(uint256 => Sub) public subs;
     mapping(address => mapping(
-        uint256 => userSubscription
-    )) public userSubscriptions;
+        uint256 => uint256
+    )) public userSubs; //maps address => (subId => exiresAt)
 
-    event subscriptionCreated(
+
+    event subCreated(
         address indexed creator,
         uint256 id
     );
 
-    constructor () {
-        owner  = msg.sender;
+
+    modifier isSubOwner(uint256 id) {
+        require(subs[id].owner == msg.sender, "You must be the owner to do this.");
+        _;
     }
 
-    function createSubscription (
+    modifier subExists(uint256 id) {
+        require(subs[id].exists, "Subscription does not exist.");
+        _;
+    }
+
+
+    constructor () {
+        owner  = msg.sender;
+        nextId = 1;
+    }
+
+    function createSub (
         string memory _title,
         uint256 _durationDays,
         uint256 _priceWei,
@@ -48,7 +59,7 @@ contract SmartSub {
     ) public {
         uint256 _id = nextId++;
 
-        subscriptions[_id] = Subscription({
+        subs[_id] = Sub({
             title: _title,
             id: _id,
             durationDays: _durationDays,
@@ -58,6 +69,10 @@ contract SmartSub {
             exists: true
         });
 
-        emit subscriptionCreated(msg.sender, _id);
+        emit subCreated(msg.sender, _id);
+    }
+
+    function activateSub (uint256 id) public isSubOwner(id) subExists(id) {
+        
     }
 }

@@ -15,7 +15,7 @@ contract SmartSub {
     struct Sub {
         string title;
         uint256 id;
-        uint256 durationDays;
+        uint256 durationSeconds;
         uint256 priceWei;
         subState state; 
         address owner; 
@@ -45,6 +45,15 @@ contract SmartSub {
         _;
     }
 
+    modifier isSubActive(uint256 id) {
+        require(subs[id].state == subState.Active, "Subscription is paused.");
+        _;
+    }
+
+    modifier meetsPrice(uint256 id) {
+        require(msg.value >= subs[id].priceWei, "Transaction value does not meet the price.");
+        _;
+    }
 
     constructor () {
         owner  = msg.sender;
@@ -53,16 +62,16 @@ contract SmartSub {
 
     function createSub (
         string memory _title,
-        uint256 _durationDays,
+        uint256 durationDays,
         uint256 _priceWei,
         bool activate
-    ) public {
+    ) external {
         uint256 _id = nextId++;
 
         subs[_id] = Sub({
             title: _title,
             id: _id,
-            durationDays: _durationDays,
+            durationSeconds: durationDays * 1 days,
             priceWei: _priceWei,
             state: activate ? subState.Active : subState.Paused,
             owner: msg.sender,
@@ -72,13 +81,27 @@ contract SmartSub {
         emit subCreated(msg.sender, _id);
     }
 
-    function activateSub (uint256 id) public isSubOwner(id) subExists(id) {
+    function activateSub (uint256 id) external isSubOwner(id) subExists(id) {
         subs[id].state = subState.Active;
     }
 
-    function pauseSub (uint256 id) public isSubOwner(id) subExists(id) {
+    function pauseSub (uint256 id) external isSubOwner(id) subExists(id) {
         subs[id].state = subState.Paused;
     }
 
-    
+    function buySub (uint256 id) external payable subExists(id) isSubActive(id) meetsPrice(id) {
+        addTime(msg.sender, id);
+    }
+
+    function giftSub (address receiver, uint256 id) external payable subExists(id) isSubActive(id) meetsPrice(id) {
+        addTime(receiver, id);
+    }
+
+    function addTime (address receiver, uint256 id) internal {
+        uint256 addSeconds = subs[id].durationSeconds;
+        
+        userSubs[receiver][id] > block.timestamp ? 
+            userSubs[receiver][id] += addSeconds : 
+            userSubs[receiver][id] = (block.timestamp + addSeconds);
+    }
 }

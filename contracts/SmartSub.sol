@@ -10,7 +10,6 @@ contract SmartSub {
         Active, 
         Paused 
     }
-    
 
     struct Sub {
         string title;
@@ -22,18 +21,18 @@ contract SmartSub {
         bool exists;
     }
 
-
     mapping(uint256 => Sub) public subs;
+
     mapping(address => mapping(
         uint256 => uint256
-    )) public userSubs; //maps address => (subId => exiresAt)
+    )) public userSubs;
 
+    mapping(address => uint256) private balance;
 
     event subCreated(
         address indexed creator,
         uint256 id
     );
-
 
     modifier isSubOwner(uint256 id) {
         require(subs[id].owner == msg.sender, "You must be the owner to do this.");
@@ -89,19 +88,33 @@ contract SmartSub {
         subs[id].state = subState.Paused;
     }
 
-    function buySub (uint256 id) external payable subExists(id) isSubActive(id) meetsPrice(id) {
+    function buySub (uint256 id) 
+        external payable subExists(id) isSubActive(id) meetsPrice(id) 
+    {
         addTime(msg.sender, id);
+        increaseBalance(id);
     }
 
-    function giftSub (address receiver, uint256 id) external payable subExists(id) isSubActive(id) meetsPrice(id) {
+    function giftSub (address receiver, uint256 id) 
+        external payable subExists(id) isSubActive(id) meetsPrice(id) 
+    {
         addTime(receiver, id);
+        increaseBalance(id);
     }
 
-    function addTime (address receiver, uint256 id) internal {
+    function addTime (address receiver, uint256 id) private {
+        uint256 expiresAt = userSubs[receiver][id];
         uint256 addSeconds = subs[id].durationSeconds;
-        
-        userSubs[receiver][id] > block.timestamp ? 
-            userSubs[receiver][id] += addSeconds : 
-            userSubs[receiver][id] = (block.timestamp + addSeconds);
+        uint256 currentTime = block.timestamp;
+
+        uint256 newExpiration = expiresAt > currentTime ? 
+            expiresAt + addSeconds : 
+            currentTime + addSeconds;
+
+        userSubs[receiver][id] = newExpiration;
+    }
+
+    function increaseBalance (uint256 subId) private {
+        balance[subs[subId].owner] += msg.value;
     }
 }

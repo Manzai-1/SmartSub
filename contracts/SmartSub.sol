@@ -36,8 +36,13 @@ contract SmartSub {
         uint256 id
     );
 
+    error NotOwner(address caller);
+    error FunctionNotFound();
+    error PaymentDataMissing();
+
+
     modifier isSubOwner(uint256 id) {
-        require(subs[id].owner == msg.sender, "You must be the owner to do this.");
+        if(subs[id].owner != msg.sender) revert NotOwner(msg.sender);
         _;
     }
 
@@ -68,9 +73,18 @@ contract SmartSub {
         locked = false;
     }
 
+
     constructor () {
         owner  = msg.sender;
         nextId = 1;
+    }
+
+    fallback() external {
+        revert FunctionNotFound();
+    }
+
+    receive() external payable {
+        revert PaymentDataMissing();
     }
 
     function createSub (
@@ -141,8 +155,10 @@ contract SmartSub {
 
     function withdrawBalance () external payable hasBalance noReentrancy {
         uint256 amountToTransfer = balance[msg.sender];
+
         balance[msg.sender] = 0;
         totalBalance -= amountToTransfer;
+
         payable(msg.sender).transfer(amountToTransfer);
         
         assert(totalBalance == address(this).balance);

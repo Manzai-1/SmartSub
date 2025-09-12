@@ -154,7 +154,7 @@ contract SmartSub {
         assert(totalBalance == address(this).balance);
     }
 
-    function withdrawBalance () external payable hasBalance noReentrancy {
+    function withdrawBalance () external hasBalance noReentrancy {
         uint256 amountToTransfer = balance[msg.sender];
 
         balance[msg.sender] = 0;

@@ -54,6 +54,11 @@ contract SmartSub {
         _;
     }
 
+    modifier hasBalance() {
+        require(balance[msg.sender] > 0, 'You have no balance to withdraw.');
+        _;
+    }
+
     constructor () {
         owner  = msg.sender;
         nextId = 1;
@@ -116,5 +121,15 @@ contract SmartSub {
 
     function increaseBalance (uint256 subId) private {
         balance[subs[subId].owner] += msg.value;
+    }
+
+    function withdrawBalance () external payable hasBalance {
+        uint256 amountToTransfer = balance[msg.sender];
+        balance[msg.sender] = 0;
+        payable(msg.sender).transfer(amountToTransfer);
+    }
+
+    function viewBalance () external view returns (uint256) {
+        return balance[msg.sender];
     }
 }

@@ -13,7 +13,7 @@ async function smartSubFixture() {
     return { smartSub, account };
 }
 
-describe('Manage Subscription Products', () => {
+describe('Subscription Products', () => {
 
     describe('Create Subscription', () => {
         it('Should create a new subscription witch gets id = 1 and exist = true', async () => {
@@ -26,7 +26,7 @@ describe('Manage Subscription Products', () => {
         });
     });
 
-    describe('Change Subscription State', () => {
+    describe('Subscription state functions', () => {
         it('Should find subscription to be active after creating it as paused and then activating it.', async () => {
             const { smartSub } = await smartSubFixture();
 
@@ -53,7 +53,7 @@ describe('Manage Subscription Products', () => {
 
 describe('Subscribe functionality', () => {
 
-    describe('Add time to subscription', () => {
+    describe('Subscription time functions', () => {
         it('Should revert with reason when calling buySub with insufficient msg.value', async () => {
             const {smartSub} = await smartSubFixture();
 
@@ -89,8 +89,8 @@ describe('Subscribe functionality', () => {
         });
     })
 
-    describe('Pay for subscription ', () => {
-      
+    describe('Subscription payment functions', () => {
+        
     })
     
 })

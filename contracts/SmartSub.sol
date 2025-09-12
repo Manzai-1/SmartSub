@@ -7,7 +7,7 @@ contract SmartSub {
     uint256 private totalBalance;
     bool private locked;
 
-    enum subState { 
+    enum SubState { 
         Active, 
         Paused 
     }
@@ -16,7 +16,7 @@ contract SmartSub {
         string title;
         uint256 durationSeconds;
         uint256 priceWei;
-        subState state; 
+        SubState state; 
         address owner; 
     }
 
@@ -102,7 +102,7 @@ contract SmartSub {
             title: _title,
             durationSeconds: durationDays * 1 days,
             priceWei: _priceWei,
-            state: activate ? subState.Active : subState.Paused,
+            state: activate ? SubState.Active : SubState.Paused,
             owner: msg.sender
         });
 
@@ -110,15 +110,15 @@ contract SmartSub {
     }
 
     function activateSub (uint256 id) external subExists(id) isSubOwner(id){
-        subs[id].state = subState.Active;
+        subs[id].state = SubState.Active;
     }
 
     function pauseSub (uint256 id) external subExists(id) isSubOwner(id){
-        subs[id].state = subState.Paused;
+        subs[id].state = SubState.Paused;
     }
 
     function isSubActive(uint256 id) public view subExists(id) returns(bool) {
-        return subs[id].state == subState.Active ? true : false;
+        return subs[id].state == SubState.Active;
     }
 
     function buySub (uint256 id) 

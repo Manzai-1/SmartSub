@@ -36,6 +36,10 @@ contract SmartSub {
     error NotOwner(address caller);
     error FunctionNotFound();
     error PaymentDataMissing();
+    error SubscriptionNotFound();
+    error SubscriptionPaused();
+    error IncorrectValue(uint256 sent, uint256 price);
+    error EmptyBalance();
 
 
     modifier isSubOwner(uint256 id) {
@@ -44,22 +48,24 @@ contract SmartSub {
     }
 
     modifier subExists(uint256 id) {
-        require(subs[id].owner != address(0), "Subscription does not exist.");
+        if(subs[id].owner == address(0)) revert SubscriptionNotFound();
         _;
     }
 
     modifier subIsActive(uint256 id) {
-        require(isSubActive(id), "Subscription is currently paused.");
+        if(!isSubActive(id)) revert SubscriptionPaused();
         _;
     }
 
     modifier meetsPrice(uint256 id) {
-        require(msg.value >= subs[id].priceWei, "Transaction value does not meet the price.");
+        if(msg.value != subs[id].priceWei) revert IncorrectValue(
+            msg.value, subs[id].priceWei
+        );
         _;
     }
 
     modifier hasBalance() {
-        require(balance[msg.sender] > 0, 'You have no balance to withdraw.');
+        if(balance[msg.sender] == 0) revert EmptyBalance();
         _;
     }
 

@@ -65,7 +65,7 @@ describe('Subscribe functionality', () => {
         it('Should revert with reason when calling buySub with insufficient msg.value', async () => {
             const {smartSub} = await smartSubFixture();
 
-            await expect(smartSub.buySub(1)).to.be.revertedWith('Transaction value does not meet the price.');
+            await expect(smartSub.buySub(1)).to.be.revertedWithCustomError(smartSub, 'IncorrectValue');
         });
 
         it('Should add time to userSub[msg.sender] when sufficient msg.value', async () => {
@@ -80,7 +80,7 @@ describe('Subscribe functionality', () => {
         it('Should not gift time to userSub[address] when insufficient msg.value', async () => {
             const {smartSub, account} = await smartSubFixture();
 
-            await expect(smartSub.giftSub(account[1].address, 1)).to.be.revertedWith('Transaction value does not meet the price.');
+            await expect(smartSub.giftSub(account[1].address, 1)).to.be.revertedWithCustomError(smartSub, 'IncorrectValue');
         });
 
         it('Should gift time to userSub[address] when sufficient msg.value', async () => {
@@ -126,7 +126,7 @@ describe('Subscribe functionality', () => {
             const {smartSub, account} = await smartSubFixture();
 
             await expect(smartSub.connect(account[0]).withdrawBalance())
-                .to.be.revertedWith('You have no balance to withdraw.');
+                .to.be.revertedWithCustomError(smartSub, 'EmptyBalance');
         });
     });
 

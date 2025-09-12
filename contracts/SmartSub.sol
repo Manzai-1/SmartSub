@@ -86,6 +86,7 @@ contract SmartSub {
     receive() external payable {
         revert PaymentDataMissing();
     }
+    
 
     function createSub (
         string memory _title,

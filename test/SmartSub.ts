@@ -32,6 +32,14 @@ describe('Subscription Products', () => {
     });
 
     describe('Subscription state functions', () => {
+        it('should revert with error when pausing a sub that you do not own', async () => {
+            const { smartSub, account } = await smartSubFixture();
+
+            await expect(smartSub.connect(account[1]).pauseSub(1))
+                .to.be.revertedWithCustomError(smartSub, 'NotOwner')
+                .withArgs(account[1].address);
+        });
+
         it('should activate a sub after creating it as paused', async () => {
             const { smartSub } = await smartSubFixture();
 
@@ -83,7 +91,7 @@ describe('Subscribe functionality', () => {
             const expiresAt = await smartSub.userSubs(account[1].address, 1);
             expect(expiresAt).to.be.greaterThan(0);
         });
-    })
+    });
 
     describe('Subscription payment functions', () => {
         it('should increase creators balance sheet when sub is bought', async () => {
@@ -96,8 +104,51 @@ describe('Subscribe functionality', () => {
             const afterBalance = await smartSub.viewBalance();
 
             expect(afterBalance).to.be.greaterThan(beforeBalance);
-        })
-    })
+        });
+
+        it('should increase wallet balance after withdrawal', async () => {
+            const {smartSub, account} = await smartSubFixture();
+
+            const beforeBalance = await ethers.provider.getBalance(account[0].address);
+            const amountToTransfer = ethers.parseEther("0.5");
+
+            await smartSub.connect(account[1]).buySub(
+                1, {value: amountToTransfer}
+            );
+            await smartSub.connect(account[0]).withdrawBalance();
+
+            const afterBalance = await ethers.provider.getBalance(account[1].address);
+
+            expect(afterBalance).to.be.greaterThan(beforeBalance);
+        });
+
+        it('should revert with reason if no balance', async () => {
+            const {smartSub, account} = await smartSubFixture();
+
+            await expect(smartSub.connect(account[0]).withdrawBalance())
+                .to.be.revertedWith('You have no balance to withdraw.');
+        });
+    });
+
+    describe('Fallback and Receive', () => {
+        it('Should revert with FunctionNotFound', async () => {
+            const {smartSub, account} = await smartSubFixture();
+
+            await expect(account[0].sendTransaction({
+                to: smartSub.getAddress(), data: "0x1234"
+            })).to.be.revertedWithCustomError(smartSub, 'FunctionNotFound');
+        });
+
+        it('Should revert with PaymentDataMissing', async () => {
+            const {smartSub, account} = await smartSubFixture();
+
+            await expect(account[0].sendTransaction({
+                to: smartSub.getAddress(), 
+                value: ethers.parseEther("0.5")
+            })).to.be.revertedWithCustomError(smartSub, 'PaymentDataMissing');
+        });
+    });
     
-})
+    
+});
 

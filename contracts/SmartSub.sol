@@ -13,7 +13,6 @@ contract SmartSub {
     }
 
     struct Sub {
-        string title;
         uint256 durationSeconds;
         uint256 priceWei;
         SubState state; 
@@ -29,6 +28,7 @@ contract SmartSub {
     mapping(address => uint256) private balance;
 
     event subCreated(
+        string indexed title,
         address indexed creator,
         uint256 id
     );
@@ -91,7 +91,7 @@ contract SmartSub {
     
 
     function createSub (
-        string memory _title,
+        string memory title,
         uint256 durationDays,
         uint256 _priceWei,
         bool activate
@@ -99,14 +99,13 @@ contract SmartSub {
         uint256 _id = nextId++;
 
         subs[_id] = Sub({
-            title: _title,
             durationSeconds: durationDays * 1 days,
             priceWei: _priceWei,
             state: activate ? SubState.Active : SubState.Paused,
             owner: msg.sender
         });
 
-        emit subCreated(msg.sender, _id);
+        emit subCreated(title, msg.sender, _id);
     }
 
     function activateSub (uint256 id) external subExists(id) isSubOwner(id){

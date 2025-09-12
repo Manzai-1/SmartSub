@@ -22,12 +22,12 @@ async function smartSubFixture() {
 describe('Subscription Products', () => {
 
     describe('Create Subscription', () => {
-        it('Should create a new subscription witch gets id = 1 and exist = true', async () => {
-            const { smartSub } = await smartSubFixture();
+        it('Should create a new subscription with the correct address as owner', async () => {
+            const { smartSub, account } = await smartSubFixture();
             
             const sub = await smartSub.subs(1);
 
-            expect(sub.exists).to.equal(true);
+            expect(sub.owner).to.equal(account[0].address);
         });
     });
 

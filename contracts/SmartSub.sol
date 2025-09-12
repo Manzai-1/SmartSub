@@ -3,7 +3,6 @@ pragma solidity 0.8.28;
 
 contract SmartSub {
 
-    address private owner; 
     uint256 private nextId;
     uint256 private totalBalance;
     bool private locked;
@@ -15,12 +14,10 @@ contract SmartSub {
 
     struct Sub {
         string title;
-        uint256 id;
         uint256 durationSeconds;
         uint256 priceWei;
         subState state; 
         address owner; 
-        bool exists;
     }
 
     mapping(uint256 => Sub) public subs;
@@ -47,7 +44,7 @@ contract SmartSub {
     }
 
     modifier subExists(uint256 id) {
-        require(subs[id].exists, "Subscription does not exist.");
+        require(subs[id].owner != address(0), "Subscription does not exist.");
         _;
     }
 
@@ -75,11 +72,10 @@ contract SmartSub {
 
 
     constructor () {
-        owner  = msg.sender;
         nextId = 1;
     }
 
-    fallback() external {
+    fallback() external payable {
         revert FunctionNotFound();
     }
 
@@ -98,26 +94,24 @@ contract SmartSub {
 
         subs[_id] = Sub({
             title: _title,
-            id: _id,
             durationSeconds: durationDays * 1 days,
             priceWei: _priceWei,
             state: activate ? subState.Active : subState.Paused,
-            owner: msg.sender,
-            exists: true
+            owner: msg.sender
         });
 
         emit subCreated(msg.sender, _id);
     }
 
-    function activateSub (uint256 id) external isSubOwner(id) subExists(id) {
+    function activateSub (uint256 id) external subExists(id) isSubOwner(id){
         subs[id].state = subState.Active;
     }
 
-    function pauseSub (uint256 id) external isSubOwner(id) subExists(id) {
+    function pauseSub (uint256 id) external subExists(id) isSubOwner(id){
         subs[id].state = subState.Paused;
     }
 
-    function isSubActive(uint256 id) public view returns(bool) {
+    function isSubActive(uint256 id) public view subExists(id) returns(bool) {
         return subs[id].state == subState.Active ? true : false;
     }
 

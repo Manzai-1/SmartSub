@@ -44,8 +44,8 @@ contract SmartSub {
         _;
     }
 
-    modifier isSubActive(uint256 id) {
-        require(subs[id].state == subState.Active, "Subscription is paused.");
+    modifier subIsActive(uint256 id) {
+        require(isSubActive(id), "Subscription is currently paused.");
         _;
     }
 
@@ -93,15 +93,19 @@ contract SmartSub {
         subs[id].state = subState.Paused;
     }
 
+    function isSubActive(uint256 id) public view returns(bool) {
+        return subs[id].state == subState.Active ? true : false;
+    }
+
     function buySub (uint256 id) 
-        external payable subExists(id) isSubActive(id) meetsPrice(id) 
+        external payable subExists(id) subIsActive(id) meetsPrice(id) 
     {
         addTime(msg.sender, id);
         increaseBalance(id);
     }
 
     function giftSub (address receiver, uint256 id) 
-        external payable subExists(id) isSubActive(id) meetsPrice(id) 
+        external payable subExists(id) subIsActive(id) meetsPrice(id) 
     {
         addTime(receiver, id);
         increaseBalance(id);

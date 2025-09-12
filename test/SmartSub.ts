@@ -38,9 +38,7 @@ describe('Subscription Products', () => {
             await smartSub.createSub(title, duration , price, false);
             await smartSub.activateSub(2);
 
-            const sub = await smartSub.subs(2);
-
-            expect(sub.state).to.equal(0);
+            expect(await smartSub.isSubActive(2)).to.be.true;
         });
 
         it('should pause a sub after creating it as active', async () => {
@@ -48,9 +46,7 @@ describe('Subscription Products', () => {
 
             await smartSub.pauseSub(1);
 
-            const sub = await smartSub.subs(1);
-
-            expect(sub.state).to.equal(1);
+            expect(await smartSub.isSubActive(1)).to.be.false;
         });
     });
 })

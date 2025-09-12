@@ -5,6 +5,8 @@ contract SmartSub {
 
     address private owner; 
     uint256 private nextId;
+    uint256 private totalBalance;
+    bool private locked;
 
     enum subState { 
         Active, 
@@ -57,6 +59,13 @@ contract SmartSub {
     modifier hasBalance() {
         require(balance[msg.sender] > 0, 'You have no balance to withdraw.');
         _;
+    }
+
+    modifier noReentrancy() {
+        require(!locked, "Blocked due to re-entrancy risk.");
+        locked = true;
+        _;
+        locked = false;
     }
 
     constructor () {
@@ -125,12 +134,18 @@ contract SmartSub {
 
     function increaseBalance (uint256 subId) private {
         balance[subs[subId].owner] += msg.value;
+        totalBalance += msg.value;
+
+        assert(totalBalance == address(this).balance);
     }
 
-    function withdrawBalance () external payable hasBalance {
+    function withdrawBalance () external payable hasBalance noReentrancy {
         uint256 amountToTransfer = balance[msg.sender];
         balance[msg.sender] = 0;
+        totalBalance -= amountToTransfer;
         payable(msg.sender).transfer(amountToTransfer);
+        
+        assert(totalBalance == address(this).balance);
     }
 
     function viewBalance () external view returns (uint256) {

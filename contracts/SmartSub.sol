@@ -27,10 +27,24 @@ contract SmartSub {
 
     mapping(address => uint256) private balance;
 
-    event subCreated(
+    event SubCreated(
         string indexed title,
         address indexed creator,
         uint256 id
+    );
+
+    event SubPaused(
+        uint256 indexed id
+    );
+
+    event SubActivated(
+        uint256 indexed id
+    );
+
+    event timeAddedToSub(
+        address indexed receiver,
+        uint256 indexed subId,
+        uint256 newExpiration 
     );
 
     error NotOwner(address caller);
@@ -105,15 +119,17 @@ contract SmartSub {
             owner: msg.sender
         });
 
-        emit subCreated(title, msg.sender, _id);
+        emit SubCreated(title, msg.sender, _id);
     }
 
     function activateSub (uint256 id) external subExists(id) isSubOwner(id){
         subs[id].state = SubState.Active;
+        emit SubActivated(id);
     }
 
     function pauseSub (uint256 id) external subExists(id) isSubOwner(id){
         subs[id].state = SubState.Paused;
+        emit SubPaused(id);
     }
 
     function isSubActive(uint256 id) public view subExists(id) returns(bool) {
@@ -144,6 +160,8 @@ contract SmartSub {
             currentTime + addSeconds;
 
         userSubs[receiver][id] = newExpiration;
+
+        emit timeAddedToSub(receiver, id, newExpiration);
     }
 
     function increaseBalance (uint256 subId) private {

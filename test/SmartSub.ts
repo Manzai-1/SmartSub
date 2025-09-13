@@ -22,6 +22,13 @@ async function smartSubFixture() {
 describe('Subscription Products', () => {
 
     describe('Create Subscription', () => {
+        it('Should revert with error if subscription is not created', async () => {
+            const { smartSub, account } = await smartSubFixture();
+            
+            await expect(smartSub.isSubActive(2))
+                .to.revertedWithCustomError(smartSub, 'SubscriptionNotFound');
+        });
+
         it('Should create a new subscription with the correct address as owner', async () => {
             const { smartSub, account } = await smartSubFixture();
             
@@ -62,10 +69,20 @@ describe('Subscription Products', () => {
 describe('Subscribe functionality', () => {
 
     describe('Subscription time functions', () => {
+        it('Should revert with reason when calling buySub on paused sub', async () => {
+            const {smartSub} = await smartSubFixture();
+
+            await smartSub.pauseSub(1);
+
+            await expect(smartSub.buySub(1)).to.be
+                .revertedWithCustomError(smartSub, 'SubscriptionPaused');
+        });
+
         it('Should revert with reason when calling buySub with insufficient msg.value', async () => {
             const {smartSub} = await smartSubFixture();
 
-            await expect(smartSub.buySub(1)).to.be.revertedWithCustomError(smartSub, 'IncorrectValue');
+            await expect(smartSub.buySub(1)).to.be
+                .revertedWithCustomError(smartSub, 'IncorrectValue');
         });
 
         it('Should add time to userSub[msg.sender] when sufficient msg.value', async () => {

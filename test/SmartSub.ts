@@ -113,28 +113,30 @@ describe('Subscribe functionality', () => {
     describe('Subscription payment functions', () => {
         it('should increase creators balance sheet when sub is bought', async () => {
             const {smartSub, account} = await smartSubFixture();
+            const amount = ethers.parseEther("0.5");
+            const creator = account[0];
+            const buyer = account[1];
 
             const beforeBalance = await smartSub.viewBalance();
-            await smartSub.connect(account[1]).buySub(
-                1, {value: ethers.parseEther("0.5")}
-            );
-            const afterBalance = await smartSub.viewBalance();
+            await smartSub.connect(buyer).buySub(1, {value: amount});
+            const afterBalance = await smartSub.connect(creator).viewBalance();
 
             expect(afterBalance).to.be.greaterThan(beforeBalance);
         });
 
         it('should increase wallet balance after withdrawal', async () => {
             const {smartSub, account} = await smartSubFixture();
+            
+            const amount = ethers.parseEther("0.5");
+            const creator = account[0];
+            const buyer = account[1];
 
-            const beforeBalance = await ethers.provider.getBalance(account[0].address);
-            const amountToTransfer = ethers.parseEther("0.5");
+            const beforeBalance = await ethers.provider.getBalance(creator.address);
+            
+            await smartSub.connect(buyer).buySub(1, {value: amount});
+            await smartSub.connect(creator).withdrawBalance();
 
-            await smartSub.connect(account[1]).buySub(
-                1, {value: amountToTransfer}
-            );
-            await smartSub.connect(account[0]).withdrawBalance();
-
-            const afterBalance = await ethers.provider.getBalance(account[1].address);
+            const afterBalance = await ethers.provider.getBalance(creator.address);
 
             expect(afterBalance).to.be.greaterThan(beforeBalance);
         });

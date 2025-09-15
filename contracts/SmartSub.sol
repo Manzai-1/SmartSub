@@ -130,7 +130,7 @@ contract SmartSub {
     function setSubDuration(uint256 id, uint256 durationDays) external subExists(id) isSubOwner(id) {
         uint256 _durationSeconds = durationDays * 1 days;
         subs[id].durationSeconds = _durationSeconds;
-        emit SubPriceUpdated(id, _durationSeconds);
+        emit SubDurationUpdated(id, _durationSeconds);
     }
 
     function isSubActive(uint256 id) public view subExists(id) returns(bool) {

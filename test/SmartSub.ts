@@ -88,9 +88,12 @@ describe('Subscribe functionality', () => {
         it('Should add time to userSub[msg.sender] when sufficient msg.value', async () => {
             const {smartSub, account} = await smartSubFixture();
 
+            const beforeExpiration = await smartSub.userSubs(account[0].address, 1);
+
             await smartSub.buySub(1, {value: parseEther("0.5")});
 
-            const expiresAt = await smartSub.userSubs(account[0].address, 1);
+            const afterExpiration = await smartSub.userSubs(account[0].address, 1);
+
             expect(expiresAt).to.be.greaterThan(0);
         });
 

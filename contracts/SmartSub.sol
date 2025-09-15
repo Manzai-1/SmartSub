@@ -7,10 +7,7 @@ contract SmartSub {
     uint256 private totalBalance;
     bool private locked;
 
-    enum SubState { 
-        Active, 
-        Paused 
-    }
+    enum SubState {Active, Paused}
 
     struct Sub {
         uint256 durationSeconds;
@@ -20,11 +17,7 @@ contract SmartSub {
     }
 
     mapping(uint256 => Sub) public subs;
-
-    mapping(address => mapping(
-        uint256 => uint256
-    )) public userSubs;
-
+    mapping(address => mapping(uint256 => uint256)) private userSubs;
     mapping(address => uint256) private balance;
 
     event SubCreated(
@@ -32,15 +25,10 @@ contract SmartSub {
         address indexed creator,
         uint256 id
     );
-
-    event SubPaused(
-        uint256 indexed id
-    );
-
-    event SubActivated(
-        uint256 indexed id
-    );
-
+    event SubPaused(uint256 indexed id);
+    event SubActivated(uint256 indexed id);
+    event SubPriceUpdated(uint256 id, uint256 priceWei);
+    event SubDurationUpdated(uint256 id, uint256 durationSeconds);
     event timeAddedToSub(
         address indexed receiver,
         uint256 indexed subId,
@@ -72,8 +60,10 @@ contract SmartSub {
     }
 
     modifier meetsPrice(uint256 id) {
-        if(msg.value != subs[id].priceWei) revert IncorrectValue(
-            msg.value, subs[id].priceWei
+        uint256 priceWei = subs[id].priceWei;
+
+        if(msg.value != priceWei) revert IncorrectValue(
+            msg.value, priceWei
         );
         _;
     }
@@ -110,16 +100,16 @@ contract SmartSub {
         uint256 _priceWei,
         bool activate
     ) external {
-        uint256 _id = nextId++;
+        uint256 id = nextId++;
 
-        subs[_id] = Sub({
+        subs[id] = Sub({
             durationSeconds: durationDays * 1 days,
             priceWei: _priceWei,
             state: activate ? SubState.Active : SubState.Paused,
             owner: msg.sender
         });
 
-        emit SubCreated(title, msg.sender, _id);
+        emit SubCreated(title, msg.sender, id);
     }
 
     function activateSub (uint256 id) external subExists(id) isSubOwner(id){
@@ -130,6 +120,17 @@ contract SmartSub {
     function pauseSub (uint256 id) external subExists(id) isSubOwner(id){
         subs[id].state = SubState.Paused;
         emit SubPaused(id);
+    }
+
+    function setSubPrice(uint256 id, uint256 _priceWei) external subExists(id) isSubOwner(id) {
+        subs[id].priceWei = _priceWei;
+        emit SubPriceUpdated(id, _priceWei);
+    }
+
+    function setSubDuration(uint256 id, uint256 durationDays) external subExists(id) isSubOwner(id) {
+        uint256 _durationSeconds = durationDays * 1 days;
+        subs[id].durationSeconds = _durationSeconds;
+        emit SubPriceUpdated(id, _durationSeconds);
     }
 
     function isSubActive(uint256 id) public view subExists(id) returns(bool) {

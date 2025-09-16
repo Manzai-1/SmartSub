@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 contract SmartSub {
 
     uint256 private nextId;
-    uint256 private totalBalance;
+    uint256 private contractBalance;
     bool private locked;
 
     enum SubState {Active, Paused}
@@ -180,20 +180,20 @@ contract SmartSub {
 
     function increaseBalance (uint256 subId) private {
         balances[subs[subId].owner] += msg.value;
-        totalBalance += msg.value;
+        contractBalance += msg.value;
 
-        assert(totalBalance == address(this).balance);
+        assert(contractBalance == address(this).balance);
     }
 
     function withdrawBalance () external hasBalance noReentrancy {
         uint256 amountToTransfer = balances[msg.sender];
 
         balances[msg.sender] = 0;
-        totalBalance -= amountToTransfer;
+        contractBalance -= amountToTransfer;
 
         payable(msg.sender).transfer(amountToTransfer);
         
-        assert(totalBalance == address(this).balance);
+        assert(contractBalance == address(this).balance);
     }
 
     function viewBalance () external view returns (uint256) {
@@ -204,20 +204,28 @@ contract SmartSub {
         return subs[id].state == SubState.Active;
     }
 
-    function isUserSubscribed(address userAddress, uint256 id) external view userExists(userAddress) subExists(id) subIsActive(id) returns(bool) {
+    function isUserSubscribed(address userAddress, uint256 id) external view subExists(id) subIsActive(id) returns(bool) {
         return users[userAddress].subExpirations[id] > block.timestamp;
     }
 
-    function getUserExpirations(address userAddress) external view userExists(userAddress) returns(uint256[] memory, uint256[] memory) {
+    function getUserExpirations(address userAddress) external view returns(uint256[] memory, uint256[] memory) {
         User storage user = users[userAddress];
-        
-        uint256[] memory subIds = user.subIds;
-        uint256[] memory expirations = new uint256[](subIds.length);
 
-        for(uint i = 0; i < subIds.length; i++) {
-            expirations[i] = user.subExpirations[subIds[i]];
+        uint256[] storage subIds = user.subIds;
+        uint256 len = subIds.length;
+
+        if(len == 0) return (new uint256[](0), new uint256[](0));
+
+        uint256[] memory ids = new uint256[](len);
+        uint256[] memory exp = new uint256[](len);
+
+        mapping(uint256 => uint256) storage subExpirations = user.subExpirations;
+
+        for(uint i = 0; i < len; i++) {
+            ids[i] = subIds[i];
+            exp[i] = subExpirations[subIds[i]];
         }
 
-        return(subIds, expirations);
+        return(ids, exp);
     }
 }

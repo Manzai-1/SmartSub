@@ -201,7 +201,6 @@ contract SmartSub {
         return users[userAddress].subExpirations[id] > block.timestamp;
     }
 
-
     function getUserExpirations(address userAddress) 
         external view returns(uint256[] memory, uint256[] memory) 
     {

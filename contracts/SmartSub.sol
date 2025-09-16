@@ -16,9 +16,14 @@ contract SmartSub {
         address owner; 
     }
 
+    struct User {
+        uint256[] subIds;
+        mapping(uint256 => uint256) subExpirations;
+    }
+
     mapping(uint256 => Sub) public subs;
-    mapping(address => mapping(uint256 => uint256)) private userSubs;
-    mapping(address => uint256) private balance;
+    mapping(address => User) private users;
+    mapping(address => uint256) private balances;
 
     event SubCreated(
         string indexed title,
@@ -42,6 +47,7 @@ contract SmartSub {
     error SubscriptionPaused();
     error IncorrectValue(uint256 sent, uint256 price);
     error EmptyBalance();
+    error NoUserHistory();
 
 
     modifier isSubOwner(uint256 id) {
@@ -69,9 +75,15 @@ contract SmartSub {
     }
 
     modifier hasBalance() {
-        if(balance[msg.sender] == 0) revert EmptyBalance();
+        if(balances[msg.sender] == 0) revert EmptyBalance();
         _;
     }
+
+    modifier userExists(address userAddress) {
+        if(users[userAddress].subIds.length == 0) revert NoUserHistory();
+        _;
+    }
+
 
     modifier noReentrancy() {
         require(!locked, "Blocked due to re-entrancy risk.");
@@ -79,7 +91,7 @@ contract SmartSub {
         _;
         locked = false;
     }
-
+    
 
     constructor () {
         nextId = 1;
@@ -133,9 +145,6 @@ contract SmartSub {
         emit SubDurationUpdated(id, _durationSeconds);
     }
 
-    function isSubActive(uint256 id) public view subExists(id) returns(bool) {
-        return subs[id].state == SubState.Active;
-    }
 
     function buySub (uint256 id) 
         external payable subExists(id) subIsActive(id) meetsPrice(id) 
@@ -152,7 +161,11 @@ contract SmartSub {
     }
 
     function addTime (address receiver, uint256 id) private {
-        uint256 expiresAt = userSubs[receiver][id];
+        User storage user = users[receiver];
+        uint256 expiresAt = user.subExpirations[id];
+
+        if(expiresAt == 0) user.subIds.push(id);
+
         uint256 addSeconds = subs[id].durationSeconds;
         uint256 currentTime = block.timestamp;
 
@@ -160,22 +173,22 @@ contract SmartSub {
             expiresAt + addSeconds : 
             currentTime + addSeconds;
 
-        userSubs[receiver][id] = newExpiration;
+        user.subExpirations[id] = newExpiration;
 
         emit timeAddedToSub(receiver, id, newExpiration);
     }
 
     function increaseBalance (uint256 subId) private {
-        balance[subs[subId].owner] += msg.value;
+        balances[subs[subId].owner] += msg.value;
         totalBalance += msg.value;
 
         assert(totalBalance == address(this).balance);
     }
 
     function withdrawBalance () external hasBalance noReentrancy {
-        uint256 amountToTransfer = balance[msg.sender];
+        uint256 amountToTransfer = balances[msg.sender];
 
-        balance[msg.sender] = 0;
+        balances[msg.sender] = 0;
         totalBalance -= amountToTransfer;
 
         payable(msg.sender).transfer(amountToTransfer);
@@ -184,6 +197,27 @@ contract SmartSub {
     }
 
     function viewBalance () external view returns (uint256) {
-        return balance[msg.sender];
+        return balances[msg.sender];
+    }
+
+    function isSubActive(uint256 id) public view subExists(id) returns(bool) {
+        return subs[id].state == SubState.Active;
+    }
+
+    function isUserSubscribed(address userAddress, uint256 id) external view userExists(userAddress) subExists(id) subIsActive(id) returns(bool) {
+        return users[userAddress].subExpirations[id] > block.timestamp;
+    }
+
+    function getUserExpirations(address userAddress) external view userExists(userAddress) returns(uint256[] memory, uint256[] memory) {
+        User storage user = users[userAddress];
+        
+        uint256[] memory subIds = user.subIds;
+        uint256[] memory expirations = new uint256[](subIds.length);
+
+        for(uint i = 0; i < subIds.length; i++) {
+            expirations[i] = user.subExpirations[subIds[i]];
+        }
+
+        return(subIds, expirations);
     }
 }

@@ -47,7 +47,6 @@ contract SmartSub {
     error SubscriptionPaused();
     error IncorrectValue(uint256 sent, uint256 price);
     error EmptyBalance();
-    error NoUserHistory();
 
 
     modifier isSubOwner(uint256 id) {
@@ -79,19 +78,13 @@ contract SmartSub {
         _;
     }
 
-    modifier userExists(address userAddress) {
-        if(users[userAddress].subIds.length == 0) revert NoUserHistory();
-        _;
-    }
-
-
     modifier noReentrancy() {
         require(!locked, "Blocked due to re-entrancy risk.");
         locked = true;
         _;
         locked = false;
     }
-    
+
 
     constructor () {
         nextId = 1;
@@ -208,24 +201,41 @@ contract SmartSub {
         return users[userAddress].subExpirations[id] > block.timestamp;
     }
 
-    function getUserExpirations(address userAddress) external view returns(uint256[] memory, uint256[] memory) {
-        User storage user = users[userAddress];
 
+    function getUserExpirations(address userAddress) 
+        external view returns(uint256[] memory, uint256[] memory) 
+    {
+        User storage user = users[userAddress];
         uint256[] storage subIds = user.subIds;
         uint256 len = subIds.length;
 
         if(len == 0) return (new uint256[](0), new uint256[](0));
 
-        uint256[] memory ids = new uint256[](len);
-        uint256[] memory exp = new uint256[](len);
-
         mapping(uint256 => uint256) storage subExpirations = user.subExpirations;
+        uint256 currentTime = block.timestamp;
 
-        for(uint i = 0; i < len; i++) {
-            ids[i] = subIds[i];
-            exp[i] = subExpirations[subIds[i]];
+        uint256[] memory ids = new uint256[](len);
+        uint256[] memory expirations = new uint256[](len);
+        uint256 activeCount = 0;
+
+        for(uint256 i = 0; i < len; i++) {
+            uint256 subId = subIds[i];
+            uint256 subExpiration = subExpirations[subId];
+
+            if(subExpiration > currentTime) {
+                ids[activeCount] = subId;
+                expirations[activeCount] = subExpiration; 
+                unchecked {
+                    activeCount++;
+                }
+            }
         }
 
-        return(ids, exp);
+        assembly {
+            mstore(ids, activeCount)
+            mstore(expirations, activeCount)
+        }
+
+        return(ids, expirations);
     }
 }

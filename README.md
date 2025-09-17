@@ -1,6 +1,9 @@
 # SmartSub
 A subscription platform smartcontract that allows users to create subscriptions and to buy subscriptions. 
 
+## Verified on etherscan and uploaded on Sepolia
+https://sepolia.etherscan.io/address/0x1c959C55047A7fE0d84DFB5073b4a690dBF01048#code
+
 ## Gas optimizations
 1. Implemented re-usable modifiers that uses if statements with reverts and custom errors in order to save gas compared to require. (Exceptions in two places where a require and assert was used in order to meet assignment criteria).
 

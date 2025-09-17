@@ -10,6 +10,7 @@ contract SmartSub {
     enum SubState {Active, Paused}
 
     struct Sub {
+        string title;
         uint256 durationSeconds;
         uint256 priceWei;
         SubState state; 
@@ -21,7 +22,7 @@ contract SmartSub {
         mapping(uint256 => uint256) subExpirations;
     }
 
-    mapping(uint256 => Sub) public subs;
+    mapping(uint256 => Sub) private subs;
     mapping(address => User) private users;
     mapping(address => uint256) private balances;
 
@@ -60,7 +61,7 @@ contract SmartSub {
     }
 
     modifier subIsActive(uint256 id) {
-        if(!isSubActive(id)) revert SubscriptionPaused();
+        if(subs[id].state != SubState.Active) revert SubscriptionPaused();
         _;
     }
 
@@ -100,21 +101,22 @@ contract SmartSub {
     
 
     function createSub (
-        string memory title,
-        uint256 durationDays,
+        string memory _title,
+        uint256 durationSeconds,
         uint256 _priceWei,
         bool activate
     ) external {
         uint256 id = nextId++;
 
         subs[id] = Sub({
-            durationSeconds: durationDays * 1 days,
+            title: _title,
+            durationSeconds: durationSeconds,
             priceWei: _priceWei,
             state: activate ? SubState.Active : SubState.Paused,
             owner: msg.sender
         });
 
-        emit SubCreated(title, msg.sender, id);
+        emit SubCreated(_title, msg.sender, id);
     }
 
     function activateSub (uint256 id) external subExists(id) isSubOwner(id){
@@ -127,15 +129,14 @@ contract SmartSub {
         emit SubPaused(id);
     }
 
-    function setSubPrice(uint256 id, uint256 _priceWei) external subExists(id) isSubOwner(id) {
-        subs[id].priceWei = _priceWei;
-        emit SubPriceUpdated(id, _priceWei);
+    function setSubPrice(uint256 id, uint256 priceWei) external subExists(id) isSubOwner(id) {
+        subs[id].priceWei = priceWei;
+        emit SubPriceUpdated(id, priceWei);
     }
 
-    function setSubDuration(uint256 id, uint256 durationDays) external subExists(id) isSubOwner(id) {
-        uint256 _durationSeconds = durationDays * 1 days;
-        subs[id].durationSeconds = _durationSeconds;
-        emit SubDurationUpdated(id, _durationSeconds);
+    function setSubDuration(uint256 id, uint256 durationSeconds) external subExists(id) isSubOwner(id) {
+        subs[id].durationSeconds = durationSeconds;
+        emit SubDurationUpdated(id, durationSeconds);
     }
 
 
@@ -193,35 +194,37 @@ contract SmartSub {
         return balances[msg.sender];
     }
 
-    function isSubActive(uint256 id) public view subExists(id) returns(bool) {
-        return subs[id].state == SubState.Active;
+    function isUserSubscribed(address userAddress, uint256 id) external view subExists(id) returns(bool) {
+        uint256 expiration = users[userAddress].subExpirations[id];
+
+        return expiration == 0 ? false : expiration > block.timestamp;
     }
 
-    function isUserSubscribed(address userAddress, uint256 id) external view subExists(id) subIsActive(id) returns(bool) {
-        return users[userAddress].subExpirations[id] > block.timestamp;
-    }
-
-    function getUserExpirations(address userAddress) 
-        external view returns(uint256[] memory, uint256[] memory) 
+    function getActiveSubs(address userAddress) 
+        external view returns(string[] memory, uint256[] memory, uint256[] memory) 
     {
         User storage user = users[userAddress];
         uint256[] storage subIds = user.subIds;
         uint256 len = subIds.length;
 
-        if(len == 0) return (new uint256[](0), new uint256[](0));
+        if(len == 0) return (new string[](0), new uint256[](0), new uint256[](0));
 
-        mapping(uint256 => uint256) storage subExpirations = user.subExpirations;
+        mapping(uint256 => uint256) storage cachedSubExpirations = user.subExpirations;
+        mapping(uint256 => Sub) storage cachedSubs = subs;
+
         uint256 currentTime = block.timestamp;
 
+        string[] memory titles = new string[](len);
         uint256[] memory ids = new uint256[](len);
         uint256[] memory expirations = new uint256[](len);
         uint256 activeCount = 0;
 
         for(uint256 i = 0; i < len; i++) {
             uint256 subId = subIds[i];
-            uint256 subExpiration = subExpirations[subId];
+            uint256 subExpiration = cachedSubExpirations[subId];
 
             if(subExpiration > currentTime) {
+                titles[activeCount] = cachedSubs[subId].title;
                 ids[activeCount] = subId;
                 expirations[activeCount] = subExpiration; 
                 unchecked {
@@ -231,10 +234,11 @@ contract SmartSub {
         }
 
         assembly {
+            mstore(titles, activeCount)
             mstore(ids, activeCount)
             mstore(expirations, activeCount)
         }
 
-        return(ids, expirations);
+        return(titles, ids, expirations);
     }
 }

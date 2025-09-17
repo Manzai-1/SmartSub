@@ -5,7 +5,7 @@ import { parseEther } from "ethers";
 const { ethers } = await network.connect();
 
 const title = "Super Duper Subscription";
-const duration = 30;
+const duration = 30*60*60*24;
 const price = ethers.parseEther("0.5");
 const activate = true;
 
@@ -88,13 +88,9 @@ describe('Subscribe functionality', () => {
         it('Should add time to userSub[msg.sender] when sufficient msg.value', async () => {
             const {smartSub, account} = await smartSubFixture();
 
-            const beforeExpiration = await smartSub.userSubs(account[0].address, 1);
+            await smartSub.connect(account[1]).buySub(1, {value: parseEther("0.5")});
 
-            await smartSub.buySub(1, {value: parseEther("0.5")});
-
-            const afterExpiration = await smartSub.userSubs(account[0].address, 1);
-
-            expect(expiresAt).to.be.greaterThan(0);
+            expect(await smartSub.isUserSubscribed(account[1].address, 1)).to.be.true;
         });
 
         it('Should not gift time to userSub[address] when insufficient msg.value', async () => {

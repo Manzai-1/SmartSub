@@ -22,7 +22,7 @@ contract SmartSub {
         mapping(uint256 => uint256) subExpirations;
     }
 
-    mapping(uint256 => Sub) private subs;
+    mapping(uint256 => Sub) public subs;
     mapping(address => User) private users;
     mapping(address => uint256) private balances;
 
@@ -202,6 +202,13 @@ contract SmartSub {
 
     function viewBalance () external view returns (uint256) {
         return balances[msg.sender];
+    }
+
+    function isSubActive(uint256 id) external view returns(bool){
+        Sub storage sub = subs[id];
+
+        if(sub.owner == address(0)) revert SubscriptionNotFound();
+        return sub.state == SubState.Active;
     }
 
     function isUserSubscribed(address userAddress, uint256 id) external view subExists(id) returns(bool) {

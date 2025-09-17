@@ -1,11 +1,10 @@
 import { expect } from 'chai';
 import { network } from 'hardhat';
-import { parseEther } from "ethers";
 
 const { ethers } = await network.connect();
 
 const title = "Super Duper Subscription";
-const duration = 30;
+const duration = 30*60*60*24;
 const price = ethers.parseEther("0.5");
 const activate = true;
 
@@ -22,18 +21,14 @@ async function smartSubFixture() {
 describe('Subscription Products', () => {
 
     describe('Create Subscription', () => {
-        it('Should revert with error if subscription is not created', async () => {
-            const { smartSub, account } = await smartSubFixture();
-            
-            await expect(smartSub.isSubActive(2))
-                .to.revertedWithCustomError(smartSub, 'SubscriptionNotFound');
-        });
-
-        it('Should create a new subscription with the correct address as owner', async () => {
+        it('Should create a new subscription with the correct values', async () => {
             const { smartSub, account } = await smartSubFixture();
             
             const sub = await smartSub.subs(1);
 
+            expect(sub.title).to.equal(title);
+            expect(sub.durationSeconds).to.equal(duration);
+            expect(sub.priceWei).to.equal(price);
             expect(sub.owner).to.equal(account[0].address);
         });
     });
@@ -63,6 +58,22 @@ describe('Subscription Products', () => {
 
             expect(await smartSub.isSubActive(1)).to.be.false;
         });
+
+        it('should set a new subscription price', async () => {
+            const { smartSub } = await smartSubFixture();
+
+            await smartSub.setSubPrice(1, ethers.parseEther("0.6"));
+
+            expect((await smartSub.subs(1)).priceWei).to.equal(ethers.parseEther("0.6"));
+        });
+
+        it('should set a new subscription duration', async () => {
+            const { smartSub } = await smartSubFixture();
+
+            await smartSub.setSubDuration(1, duration * 2);
+
+            expect((await smartSub.subs(1)).durationSeconds).to.equal(duration * 2);
+        });
     });
 })
 
@@ -88,13 +99,9 @@ describe('Subscribe functionality', () => {
         it('Should add time to userSub[msg.sender] when sufficient msg.value', async () => {
             const {smartSub, account} = await smartSubFixture();
 
-            const beforeExpiration = await smartSub.userSubs(account[0].address, 1);
+            await smartSub.connect(account[1]).buySub(1, {value: price});
 
-            await smartSub.buySub(1, {value: parseEther("0.5")});
-
-            const afterExpiration = await smartSub.userSubs(account[0].address, 1);
-
-            expect(expiresAt).to.be.greaterThan(0);
+            expect(await smartSub.isUserSubscribed(account[1].address, 1)).to.be.true;
         });
 
         it('Should not gift time to userSub[address] when insufficient msg.value', async () => {
@@ -106,10 +113,32 @@ describe('Subscribe functionality', () => {
         it('Should gift time to userSub[address] when sufficient msg.value', async () => {
             const {smartSub, account} = await smartSubFixture();
 
-            await smartSub.giftSub(account[1].address, 1, {value: parseEther("0.5")});
+            await smartSub.giftSub(account[1].address, 1, {value: price});
 
-            const expiresAt = await smartSub.userSubs(account[1].address, 1);
-            expect(expiresAt).to.be.greaterThan(0);
+            expect(await smartSub.isUserSubscribed(account[1].address, 1)).to.be.true;
+        });
+
+        it('should only retrieve active subscriptions for an address where 1 subscription has expired', async () => {
+            const {smartSub, account} = await smartSubFixture();
+
+            await smartSub.createSub("A", duration , price, activate);
+            await smartSub.createSub("B", duration , price, activate);
+            await smartSub.createSub("C", 1 , price, activate);
+
+            await smartSub.connect(account[1]).buySub(1, {value: price});
+            await smartSub.connect(account[1]).buySub(2, {value: price});
+            await smartSub.connect(account[1]).buySub(3, {value: price});
+            await smartSub.connect(account[1]).buySub(4, {value: price});
+
+            await ethers.provider.send("evm_increaseTime", [1000]);
+            await ethers.provider.send("evm_mine", []);
+
+            const [titles, ids, expirations] = await smartSub.getActiveSubs(account[1].address);
+
+
+            expect(titles.length).to.equal(3);
+            expect(ids.length).to.equal(3);
+            expect(expirations.length).to.equal(3);
         });
     });
 

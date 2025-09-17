@@ -4,15 +4,21 @@ A subscription platform smartcontract that allows users to create subscriptions 
 ## Gas optimizations
 1. Implemented re-usable modifiers that uses if statements with reverts and custom errors in order to save gas compared to require. (Exceptions in two places where a require and assert was used in order to meet assignment criteria).
 
-2. Cache data in memory instead of making multiple fetches from storage. 
+2. Save on SLOADs by combining modifiers that require the same checks and are called by single functions.
+Example 
+    * Avoid: ```function setSubPrice(uint256 id, uint256 priceWei) external subExists(id) IsOwner(id)```
+    * Use: ```function setSubPrice(uint256 id, uint256 priceWei) external subExistsAndIsOwner(id)```
 
-3. Only use public where absolutely necessary, save gas by utlizing private / internal / external where possible. 
+3. Cache data in memory instead of making multiple fetches from storage, also send storage pointers as arguments instead of setting them multiple times when calling functions that needs the same data. 
 
-4. Use mappings instead of array's where applicable. 
+4. Only use public where absolutely necessary, save gas by utlizing private / internal / external where possible. 
 
-5. When filtering arrays on a criteria before returning them, instead of using double pass where matches are first counted before declaring the arrays of correct size, i declared the arrays of max size and then use assembly mstore in order to truncate the array to the size of active subscriptions counted. 
-    * Double pass: 33175 gas
-    * Single pass: 29455 gas
+5. Use mappings instead of array's where applicable. 
+
+6. When filtering arrays on a criteria before returning them, instead of using double pass where matches are first counted before declaring the arrays of correct size, i declared the arrays of max size and then use assembly mstore in order to truncate the array to the size of active subscriptions counted.
+    * Difference in gas having 5 elements where 1 should be excluded:
+        * Double pass: ```33175``` gas
+        * Single pass: ```29455``` gas
 
 
 

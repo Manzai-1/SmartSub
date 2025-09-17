@@ -51,8 +51,10 @@ contract SmartSub {
     error TransferFailed(uint256 amountWei, address recipient);
 
 
-    modifier isSubOwner(uint256 id) {
-        if(subs[id].owner != msg.sender) revert NotOwner(msg.sender);
+    modifier subExistsAndIsOwner(uint256 id) {
+        address owner = subs[id].owner;
+        if(owner == address(0)) revert SubscriptionNotFound();
+        if(owner != msg.sender) revert NotOwner(msg.sender);
         _;
     }
 
@@ -61,17 +63,10 @@ contract SmartSub {
         _;
     }
 
-    modifier subIsActive(uint256 id) {
-        if(subs[id].state == SubState.Paused) revert SubscriptionPaused();
-        _;
-    }
-
-    modifier meetsPrice(uint256 id) {
-        uint256 priceWei = subs[id].priceWei;
-
-        if(msg.value != priceWei) revert IncorrectValue(
-            msg.value, priceWei
-        );
+    modifier subExistsAndIsActive(uint256 id) {
+        Sub storage sub = subs[id];
+        if(sub.owner == address(0)) revert SubscriptionNotFound();
+        if(sub.state == SubState.Paused) revert SubscriptionPaused();
         _;
     }
 
@@ -120,48 +115,56 @@ contract SmartSub {
         emit SubCreated(_title, msg.sender, id);
     }
 
-    function activateSub (uint256 id) external subExists(id) isSubOwner(id){
+    function activateSub (uint256 id) external subExistsAndIsOwner(id){
         subs[id].state = SubState.Active;
         emit SubActivated(id);
     }
 
-    function pauseSub (uint256 id) external subExists(id) isSubOwner(id){
+    function pauseSub (uint256 id) external subExistsAndIsOwner(id){
         subs[id].state = SubState.Paused;
         emit SubPaused(id);
     }
 
-    function setSubPrice(uint256 id, uint256 priceWei) external subExists(id) isSubOwner(id) {
+    function setSubPrice(uint256 id, uint256 priceWei) external subExistsAndIsOwner(id) {
         subs[id].priceWei = priceWei;
         emit SubPriceUpdated(id, priceWei);
     }
 
-    function setSubDuration(uint256 id, uint256 durationSeconds) external subExists(id) isSubOwner(id) {
+    function setSubDuration(uint256 id, uint256 durationSeconds) external subExistsAndIsOwner(id) {
         subs[id].durationSeconds = durationSeconds;
         emit SubDurationUpdated(id, durationSeconds);
     }
 
 
-    function buySub (uint256 id) 
-        external payable subExists(id) subIsActive(id) meetsPrice(id) 
-    {
-        addTime(msg.sender, id);
-        increaseBalance(id);
+    function buySub (uint256 id) external payable subExistsAndIsActive(id) {
+        Sub storage sub = subs[id];
+        uint256 received = msg.value;
+        uint256 price = sub.priceWei;
+
+        if(received != price) revert IncorrectValue(received, price);
+
+        addTime(msg.sender, id, sub);
+        increaseBalance(sub);
     }
 
-    function giftSub (address receiver, uint256 id) 
-        external payable subExists(id) subIsActive(id) meetsPrice(id) 
-    {
-        addTime(receiver, id);
-        increaseBalance(id);
+    function giftSub (address receiver, uint256 id) external payable subExistsAndIsActive(id) {
+        Sub storage sub = subs[id];
+        uint256 received = msg.value;
+        uint256 price = sub.priceWei;
+
+        if(received != price) revert IncorrectValue(received, price);
+
+        addTime(receiver, id, sub);
+        increaseBalance(sub);
     }
 
-    function addTime (address receiver, uint256 id) private {
+    function addTime (address receiver, uint256 id, Sub storage sub) private {
         User storage user = users[receiver];
         uint256 expiresAt = user.subExpirations[id];
 
         if(expiresAt == 0) user.subIds.push(id);
 
-        uint256 addSeconds = subs[id].durationSeconds;
+        uint256 addSeconds = sub.durationSeconds;
         uint256 currentTime = block.timestamp;
 
         uint256 newExpiration = expiresAt > currentTime ? 
@@ -173,8 +176,8 @@ contract SmartSub {
         emit TimeAddedToSub(receiver, id, newExpiration);
     }
 
-    function increaseBalance (uint256 subId) private {
-        balances[subs[subId].owner] += msg.value;
+    function increaseBalance (Sub storage sub) private {
+        balances[sub.owner] += msg.value;
         owedBalance += msg.value;
 
         assert(owedBalance <= address(this).balance);

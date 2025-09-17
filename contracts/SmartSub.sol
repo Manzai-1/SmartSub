@@ -219,9 +219,6 @@ contract SmartSub {
 
         if(len == 0) return (new string[](0), new uint256[](0), new uint256[](0));
 
-        mapping(uint256 => uint256) storage cachedSubExpirations = user.subExpirations;
-        mapping(uint256 => Sub) storage cachedSubs = subs;
-
         uint256 currentTime = block.timestamp;
 
         string[] memory titles = new string[](len);
@@ -231,10 +228,10 @@ contract SmartSub {
 
         for(uint256 i = 0; i < len; i++) {
             uint256 subId = subIds[i];
-            uint256 subExpiration = cachedSubExpirations[subId];
+            uint256 subExpiration = user.subExpirations[subId];
 
             if(subExpiration > currentTime) {
-                titles[activeCount] = cachedSubs[subId].title;
+                titles[activeCount] = subs[subId].title;
                 ids[activeCount] = subId;
                 expirations[activeCount] = subExpiration; 
                 unchecked {

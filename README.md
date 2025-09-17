@@ -10,7 +10,7 @@ A subscription platform smartcontract that allows users to create subscriptions 
 
 4. Use mappings instead of array's where applicable. 
 
-5. When filtering arrays on a criteria, instead of using double pass where matches are first counted before declaring the arrays of correct size, i declared the arrays of max size and then use assembly mstore in order to truncate the array to the size of active subscriptions counted. 
+5. When filtering arrays on a criteria before returning them, instead of using double pass where matches are first counted before declaring the arrays of correct size, i declared the arrays of max size and then use assembly mstore in order to truncate the array to the size of active subscriptions counted. 
     * Double pass: 33175 gas
     * Single pass: 29455 gas
 
@@ -24,3 +24,9 @@ The use of events negates the need for the following implementations that has be
 
 2. Functions isUserSubscribed and getUserExpirations are not needed since this can be found out of-chain through the emited event timeAddedToSub. 
 
+
+## Notes on security
+
+1. Use call with revert instead of transfer in order to properly calculate gas and avoid tx failure  
+    * Avoid: ```payable(owner).transfer(amountToTransfer);``` 
+    * Use: ```(bool ok, ) = payable(recipient).call{value: amount}(""); ```  

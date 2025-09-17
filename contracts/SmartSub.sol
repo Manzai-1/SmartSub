@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 contract SmartSub {
 
     uint256 private nextId;
-    uint256 private contractBalance;
+    uint256 private owedBalance;
     bool private locked;
 
     enum SubState {Active, Paused}
@@ -35,7 +35,7 @@ contract SmartSub {
     event SubActivated(uint256 indexed id);
     event SubPriceUpdated(uint256 id, uint256 priceWei);
     event SubDurationUpdated(uint256 id, uint256 durationSeconds);
-    event timeAddedToSub(
+    event TimeAddedToSub(
         address indexed receiver,
         uint256 indexed subId,
         uint256 newExpiration 
@@ -48,6 +48,7 @@ contract SmartSub {
     error SubscriptionPaused();
     error IncorrectValue(uint256 sent, uint256 price);
     error EmptyBalance();
+    error TransferFailed(uint256 amountWei, address recipient);
 
 
     modifier isSubOwner(uint256 id) {
@@ -61,7 +62,7 @@ contract SmartSub {
     }
 
     modifier subIsActive(uint256 id) {
-        if(subs[id].state != SubState.Active) revert SubscriptionPaused();
+        if(subs[id].state == SubState.Paused) revert SubscriptionPaused();
         _;
     }
 
@@ -169,25 +170,31 @@ contract SmartSub {
 
         user.subExpirations[id] = newExpiration;
 
-        emit timeAddedToSub(receiver, id, newExpiration);
+        emit TimeAddedToSub(receiver, id, newExpiration);
     }
 
     function increaseBalance (uint256 subId) private {
         balances[subs[subId].owner] += msg.value;
-        contractBalance += msg.value;
+        owedBalance += msg.value;
 
-        assert(contractBalance == address(this).balance);
+        assert(owedBalance <= address(this).balance);
     }
 
     function withdrawBalance () external hasBalance noReentrancy {
         uint256 amountToTransfer = balances[msg.sender];
 
         balances[msg.sender] = 0;
-        contractBalance -= amountToTransfer;
-
-        payable(msg.sender).transfer(amountToTransfer);
+        owedBalance -= amountToTransfer;
+        transferEth(amountToTransfer);
         
-        assert(contractBalance == address(this).balance);
+        assert(owedBalance <= address(this).balance);
+    }
+
+    function transferEth(uint256 amount) private {
+        address recipient = msg.sender;
+
+        (bool ok, ) = payable(recipient).call{value: amount}("");
+        if(!ok) revert TransferFailed(amount, recipient);
     }
 
     function viewBalance () external view returns (uint256) {

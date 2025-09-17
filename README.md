@@ -33,6 +33,8 @@ The use of events negates the need for the following implementations that has be
 
 ## Notes on security
 
-1. Use call with revert instead of transfer in order to properly calculate gas and avoid tx failure  
+1. Use call with revert instead of transfer in order to properly calculate gas and avoid tx failure 
     * Avoid: ```payable(owner).transfer(amountToTransfer);``` 
     * Use: ```(bool ok, ) = payable(recipient).call{value: amount}(""); ```  
+
+2. Guard against re-entrancy with a modifier that locks until the call has excecuted, this hinders malicious actors to make multiple withdraw requests in order to withdraw more than what is allocated to them. 
